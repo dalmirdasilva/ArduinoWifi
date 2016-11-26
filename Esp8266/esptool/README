@@ -1,0 +1,34 @@
+./esptool.py --port /dev/ttyACM0 write_flash 0x00000 ESP_8266_BIN0.92.bin
+
+
+
+
+
+SOME AT COMMANDS
+
+AT+CWMODE=1
+AT+CWJAP_DEF="GVT-B011","xxxx"
+AT+CWJAP_DEF="gvt","xxx"
+AT+CWJAP_DEF="dsmoto","123mudar"
+AT+CWQAP
+AT+CWJAP_DEF="prtx","hpcomplab01!"
+AT+PING="www.google.com"
+AT+PING="192.168.43.199"
+AT+CIFSR // 10.28.0.86
+
+AT+CIPSERVER=1,3000
+AT+CIPSTART="TCP","54.86.161.62",3003
+AT+CIPSEND=
+AT+CIPSEND
+AT+CIPCLOSE
+
+
+
+
+
+
+
+
+
+
+AT+UART_DEF=115200,8,1,0,0

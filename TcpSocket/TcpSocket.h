@@ -1,0 +1,283 @@
+/**
+ * Arduino - Esp8266 driver
+ * 
+ * @author Dalmir da Silva <dalmirdasilva@gmail.com>
+ */
+
+#ifndef __ARDUINO_WIFI_ESP8266_TCP_SOCKET_H__
+#define __ARDUINO_WIFI_ESP8266_TCP_SOCKET_H__ 1
+
+#define WIFI_ESP8266_MAX_COMMAND_LENGHT  64
+#define WIFI_ESP8266_CDNSGIP_TIMEOUT     5000UL
+#define WIFI_ESP8266_CIICR_TIMEOUT       10000UL
+#define WIFI_ESP8266_CIPSTART_TIMEOUT    5000UL
+#define WIFI_ESP8266_SEND_TIMEOUT        10000UL
+#define WIFI_ESP8266_CIPSTATUS_TIMEOUT   5000UL
+#define WIFI_ESP8266_CIPACK_TIMEOUT      5000UL
+
+#include <Esp8266.h>
+#include <stdlib.h>
+
+class TcpSocket {
+    
+    /**
+     * Esp8266 pointer.
+     */
+    Esp8266 *esp;
+    
+    /**
+     * Multi connection.
+     */
+    bool multiplexed;
+    
+public:
+
+    /**
+     * Public constructor.
+     * 
+     * @param sim       The ESP8266 pointer.
+     */
+    TcpSocket(Esp8266 *esp);
+
+    /**
+     * Start Up Multi-IP Connection 
+     * 
+     * Enable or disable multi IP connection.
+     * 
+     * Example:
+     * > +CIPMUX=0|1
+     * < OK
+     *
+     * @param use           0 disables multi IP connection and 1 enables.
+     * @return
+     */
+    bool useMultiplexer(bool use);
+
+    /**
+     * Query Current Connection Status
+     * 
+     * STATE: <state>
+     * If the module is set as server
+     * S: 0, <bearer>, <port>, <server state>
+     * C: <n>,<bearer>, <TCP/UDP>, <IP address>, <port>, <client state>
+     *
+     * <n>
+     * 0-7 A numeric parameter which indicates the connection number
+     *
+     * <bearer>
+     * 0-1 GPRS bearer, default is 0
+     *
+     * <server state>
+     * OPENING
+     * LISTENING
+     * CLOSING
+     *
+     * <client state>
+     * INITIAL
+     * CONNECTING
+     * CONNECTED
+     * REMOTE CLOSING
+     * CLOSING
+     * CLOSED
+     *
+     * <state>
+     * A string parameter(string should be included in
+     * quotation marks) which indicates the progress of
+     * connecting
+     * 0 IP INITIAL
+     * 1 IP START
+     * 2 IP CONFIG
+     * 3 IP GPRSACT
+     * 4 IP STATUS
+     * 5 TCP CONNECTING/UDP CONNECTING/SERVER LISTENING
+     * 6 CONNECT OK
+     * 7 TCP CLOSING/UDP CLOSING
+     * 8 TCP CLOSED/UDP CLOSED
+     * 9 PDP DEACT
+     *
+     * In Multi-IP state:
+     * 0 IP INITIAL
+     * 1 IP START
+     * 2 IP CONFIG
+     * 3 IP GPRSACT
+     * 4 IP STATUS
+     *
+     * Example:
+     * > AT+CIPSTATUS[=n]
+     * < OK
+     * <
+     * < STATE: IP STATUS
+     *
+     *
+     * @return 
+     */
+    unsigned char status(char connection);
+
+    /**
+     * Status
+     */
+    unsigned char status();
+
+    /**
+     * Configure Domain Name Server
+     * 
+     * @return 
+     */
+    unsigned char configureDns(const char *primary, const char *secondary);
+
+    /**
+     * Start Up TCP or UDP Connection
+     * 
+     * @return 
+     */
+    inline unsigned char open(const char *mode, const char *address, unsigned int port) {
+        return open(-1, mode, address, port);
+    }
+
+    /**
+     * Start Up TCP or UDP Connection
+     * 
+     * Example:
+     * > AT+CIPSTART="TCP","dalmirdasilva.com", "3000"
+     * < OK
+     * <
+     * < CONNECT OK
+     *
+     * @param   connection  If multi-IP connection (+CIPMUX=1)
+     *                      0..7 A numeric parameter which indicates the connection number
+     * @param   mode        A string parameter(string should be included in quotation
+     *                      marks) which indicates the connection type
+     *                      "TCP" Establish a TCP connection
+     *                      "UDP" Establish a UDP connection
+     * @param   address     A string parameter(string should be included in quotation
+     *                      marks) which indicates remote server IP address
+     * @param   port        Remote server port
+     * @return              OperationResult
+     */
+    unsigned char open(char connection, const char *mode, const char *address, unsigned int port);
+
+    /**
+     * Send Data Through TCP or UDP Connection
+     *
+     * Example:
+     * > AT+CIPSEND= <0-7>,<length>
+     * < >
+     * > data
+     * DATA ACCEPT:<length>
+     *
+     * @return
+     */
+    inline unsigned int send(unsigned char *buf, unsigned int len) {
+        return send(-1, buf, len);
+    }
+
+    /**
+     * Send Data Through TCP or UDP Connection
+     *
+     * @return
+     */
+    unsigned int send(char connection, unsigned char *buf, unsigned int len);
+
+    /**
+     * Close TCP or UDP Connection
+     * 
+     * Example:
+     * > AT+CIPCLOSE=1[,connection]
+     * < CLOSE OK
+     *
+     * @param   connection  If multi-IP connection (+CIPMUX=1)
+     *                      0..7 A numeric parameter which indicates the connection number
+     * @return              OperationResult
+     */
+    unsigned char close(char connection);
+
+    /**
+     * Close TCP or UDP Connection
+     * 
+     * @return 
+     */
+    unsigned char close();
+
+    /**
+     * Query the IP Address of Given Domain Name
+     * 
+     * Example:
+     * > AT+CDNSGIP="www.google.com"
+     * < OK
+     * <
+     * < +CDNSGIP: 1,"www.google.com","64.233.186.99"
+     *
+     * @return  DnsResolution
+     * @param   name    Domain name. Should contains less than 256 bytes
+     * @param   ip      4-byte-long array where the ip will be placed
+     */
+    unsigned char resolve(const char *name, unsigned char ip[4]);
+    
+    /**
+     * Configure Module as Server
+     * 
+     * This command is allowed to establish a TCP server only when the state is IP
+     * INITIAL or IP STATUS when it is in single state. In multi-IP state, the state
+     * is in IP STATUS only.
+     *
+     * Example:
+     * AT+CIPSERVER=(0-CLOSE SERVER, 1-OPEN SERVER),(1,65535)
+     *
+     * @param   mode                (0-CLOSE SERVER, 1-OPEN SERVER)
+     * @param   port                Port number
+     *
+     * @return 
+     */
+    unsigned char configureServer(unsigned char mode, unsigned int port);
+
+    /**
+     * Deactivate GPRS PDP Context
+     * 
+     * Example:
+     * > AT+CIPSHUT
+     * < SHUT OK
+     *
+     * @return 
+     */
+    unsigned char shutdown();
+
+    /**
+     * Query Previous Connection Data Transmitting State
+     */
+    inline unsigned char transmittingState(void *stateStruct) {
+        return getTransmittingState(-1, stateStruct);
+    }
+
+    /**
+     * Query Previous Connection Data Transmitting State
+     *
+     * Example:
+     * > AT+CIPACK=<n>
+     * < +CIPACK: <txlen>, <acklen>, <nacklen>
+     *
+     * <n>
+     * A numeric parameter which indicates the connection number
+     *
+     * <txlen>
+     * The data amount which has been sent
+     *
+     * <acklen>
+     * The data amount confirmed successfully by the server
+     *
+     * <nacklen>
+     * The data amount without confirmation by the server
+     *
+     * @param   stateStruct         Pointer to the TransmittingState structure.
+     */
+    unsigned char getTransmittingState(char connection, void *stateStruct);
+
+    /**
+     * Tries to parse an IP from string.
+     *
+     * @param           buf should have the following format: [0-9]{1,4}.[0-9]{1,4}.[0-9]{1,4}.[0-9]{1,4}
+     * @param           ip  whre to store the parsed ip, 4 bytes.
+     */
+    unsigned char static parseIp(const char *buf, unsigned char ip[4]);
+};
+
+#endif /* __ARDUINO_WIFI_ESP8266_TCP_SOCKET_H__ */
